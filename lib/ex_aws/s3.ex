@@ -548,6 +548,52 @@ defmodule ExAws.S3 do
     request(:get, bucket, object, resource: "torrent")
   end
 
+  #@type select_object_content_json_input_types :: :lines | :document
+  #@type select_object_content_json_input_opts :: [
+  #  {:type, select_object_content_json_input_types}
+  #]
+  #@type select_object_content_csv_input_opts :: [
+  #  
+  #]
+  #@type select_object_compression_types :: :none | :gzip
+  #@type select_object_serialization_types :: :csv | :json
+  #@type select_object_input_opts :: [
+  #  {:type, select_object_serialization_types}
+  #]
+  #@type select_object_content_opts :: [
+  #  
+  #]
+  
+#woiejf  
+# {expression_type, opts} = Keyword.pop(:expression_type, "SQL")
+# {input_serializtion_compression_type, opts} = Keyword.pop(:compression_type, nil)
+# {input_serialization_
+  
+  @doc "Get an object using S3 Select"
+  @spec select_object_content(bucket :: binary, object :: binary, query :: binary, opts :: Keyword.t) :: ExAws.Operation.S3.t
+  def select_object_content(bucket, object, query, opts) do
+    body = """
+<?xml version="1.0" encoding="UTF-8"?>
+<SelectRequest>
+    <Expression>#{query}</Expression>
+    <ExpressionType>SQL</ExpressionType>
+    <InputSerialization>
+        <CompressionType>NONE</CompressionType>
+        <JSON>
+	<Type>LINES</Type>
+        </JSON>
+    </InputSerialization>
+    <OutputSerialization>
+        <JSON>
+<RecordDelimiter>\n</RecordDelimiter>
+        </JSON>                               
+    </OutputSerialization>
+</SelectRequest> 
+    """
+    request(:post, bucket, object, [resource: "select", params: %{"select-type" => "2"}, body: body], %{parser: &Parsers.parse_select_object_content/1})
+  end
+
+  
   @type head_object_opt ::
     {:encryption, customer_encryption_opts}
     | {:range, binary}
@@ -557,6 +603,14 @@ defmodule ExAws.S3 do
     | {:if_none_match, binary}
   @type head_object_opts :: [head_object_opt]
 
+  def parse_chunked(bytes, chunks \\ <<>>)
+  def parse_chunked(<<>>, chunks), do: chunks
+  def parse_chunked(<< total_size :: big-size(32), header_size :: big-size(32), prelude_crc :: big-size(32), headers :: size(header_size)-binary, rest :: binary>>, chunks) do
+    payload_size = total_size - header_size - 16
+    << payload :: binary-size(payload_size), crc :: big-size(32), rest :: binary >> = rest
+    parse_chunked(rest, chunks <> payload)
+  end
+  
   @doc "Determine of an object exists"
   @spec head_object(bucket :: binary, object :: binary) :: ExAws.Operation.S3.t
   @spec head_object(bucket :: binary, object :: binary, opts :: head_object_opts) :: ExAws.Operation.S3.t
