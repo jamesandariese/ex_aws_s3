@@ -99,7 +99,6 @@ if Code.ensure_loaded?(SweetXml) do
     defp parse_headers(bytes, headers \\ %{})
     defp parse_headers(<<>>, headers), do: headers
     defp parse_headers(<< header_name_length :: size(8), header_name :: size(header_name_length) - binary, 7 :: size(8), value_length :: size(16)-big, value :: size(value_length) - binary, rest :: binary >> = chunk, headers) do
-      IO.inspect(chunk)
       parse_headers(rest, Map.put(headers, header_name, value))
     end
     defp parse_chunked(bytes, chunks \\ <<>>)
@@ -107,7 +106,6 @@ if Code.ensure_loaded?(SweetXml) do
     defp parse_chunked(<< total_size :: big-size(32), header_size :: big-size(32), prelude_crc :: big-size(32), headers :: size(header_size)-binary, rest :: binary>>, chunks) do
       payload_size = total_size - header_size - 16
       << payload :: binary-size(payload_size), crc :: big-size(32), rest :: binary >> = rest
-      #IO.inspect(parse_headers(headers))
       if Map.get(parse_headers(headers), ":event-type", nil) == "Records" do
 	parse_chunked(rest, chunks <> payload)
       else
